@@ -569,4 +569,302 @@ describe("KeyvMongodbStore", () => {
 			expect(await keyv.get<number>("zero")).toBe(0);
 		});
 	});
+
+	describe("Multiple Namespaces on Same Collection", () => {
+		let sharedCollection: Collection;
+
+		beforeEach(async () => {
+			sharedCollection = db.collection("shared-namespace-test");
+			await sharedCollection.deleteMany({});
+		});
+
+		it("should isolate data between different namespaces on same collection", async () => {
+			const store1 = new KeyvMongodbStore(sharedCollection, { namespace: "ns1" });
+			const store2 = new KeyvMongodbStore(sharedCollection, { namespace: "ns2" });
+			const store3 = new KeyvMongodbStore(sharedCollection, { namespace: "ns3" });
+
+			const keyv1 = new Keyv({ store: store1 });
+			const keyv2 = new Keyv({ store: store2 });
+			const keyv3 = new Keyv({ store: store3 });
+
+			// Set same key with different values in each namespace
+			await keyv1.set("config", { env: "ns1" });
+			await keyv2.set("config", { env: "ns2" });
+			await keyv3.set("config", { env: "ns3" });
+
+			// Each namespace should have its own value
+			expect(await keyv1.get("config")).toEqual({ env: "ns1" });
+			expect(await keyv2.get("config")).toEqual({ env: "ns2" });
+			expect(await keyv3.get("config")).toEqual({ env: "ns3" });
+		});
+
+		it("should handle many namespaces on same collection", async () => {
+			const namespaces = Array.from({ length: 10 }, (_, i) => `tenant-${i}`);
+			const stores = namespaces.map(
+				(ns) => new KeyvMongodbStore(sharedCollection, { namespace: ns }),
+			);
+			const keyvs = stores.map((store) => new Keyv({ store }));
+
+			// Set unique values in each namespace
+			for (let i = 0; i < namespaces.length; i++) {
+				await keyvs[i].set("value", i * 100);
+			}
+
+			// Verify each namespace has correct value
+			for (let i = 0; i < namespaces.length; i++) {
+				expect(await keyvs[i].get<number>("value")).toBe(i * 100);
+			}
+
+			// Verify total document count in collection
+			const count = await sharedCollection.countDocuments();
+			expect(count).toBe(10);
+		});
+
+		it("should support delete operations across namespaces", async () => {
+			const store1 = new KeyvMongodbStore(sharedCollection, { namespace: "ns1" });
+			const store2 = new KeyvMongodbStore(sharedCollection, { namespace: "ns2" });
+
+			const keyv1 = new Keyv({ store: store1 });
+			const keyv2 = new Keyv({ store: store2 });
+
+			await keyv1.set("data", "value1");
+			await keyv2.set("data", "value2");
+
+			// Delete from namespace 1
+			const deleted = await keyv1.delete("data");
+			expect(deleted).toBe(true);
+
+			// Should be gone from namespace 1 but not namespace 2
+			expect(await keyv1.get("data")).toBeUndefined();
+			expect(await keyv2.get<string>("data")).toBe("value2");
+		});
+
+		it("should handle clear operation for specific namespace only", async () => {
+			const store1 = new KeyvMongodbStore(sharedCollection, { namespace: "ns1" });
+			const store2 = new KeyvMongodbStore(sharedCollection, { namespace: "ns2" });
+			const store3 = new KeyvMongodbStore(sharedCollection, { namespace: "ns3" });
+
+			const keyv1 = new Keyv({ store: store1 });
+			const keyv2 = new Keyv({ store: store2 });
+			const keyv3 = new Keyv({ store: store3 });
+
+			// Add multiple keys to each namespace
+			await keyv1.set("key1", "value1");
+			await keyv1.set("key2", "value2");
+			await keyv2.set("key1", "value1");
+			await keyv2.set("key2", "value2");
+			await keyv3.set("key1", "value1");
+			await keyv3.set("key2", "value2");
+
+			// Clear namespace 2
+			await keyv2.clear();
+
+			// Namespace 1 and 3 should still have data
+			expect(await keyv1.get<string>("key1")).toBe("value1");
+			expect(await keyv1.get<string>("key2")).toBe("value2");
+			expect(await keyv3.get<string>("key1")).toBe("value1");
+			expect(await keyv3.get<string>("key2")).toBe("value2");
+
+			// Namespace 2 should be empty
+			expect(await keyv2.get("key1")).toBeUndefined();
+			expect(await keyv2.get("key2")).toBeUndefined();
+		});
+
+		it("should support getMany across same collection with different namespaces", async () => {
+			const store1 = new KeyvMongodbStore(sharedCollection, { namespace: "ns1" });
+			const store2 = new KeyvMongodbStore(sharedCollection, { namespace: "ns2" });
+
+			const keyv1 = new Keyv({ store: store1 });
+			const keyv2 = new Keyv({ store: store2 });
+
+			// Set up data in both namespaces
+			await keyv1.set("a", 1);
+			await keyv1.set("b", 2);
+			await keyv1.set("c", 3);
+			await keyv2.set("a", 10);
+			await keyv2.set("b", 20);
+			await keyv2.set("c", 30);
+
+			// GetMany should respect namespace
+			const values1 = await store1.getMany(["a", "b", "c"]);
+			const values2 = await store2.getMany(["a", "b", "c"]);
+
+			expect(values1).toEqual([1, 2, 3]);
+			expect(values2).toEqual([10, 20, 30]);
+		});
+
+		it("should handle TTL independently per namespace", async () => {
+			const store1 = new KeyvMongodbStore(sharedCollection, { namespace: "ns1" });
+			const store2 = new KeyvMongodbStore(sharedCollection, { namespace: "ns2" });
+
+			const keyv1 = new Keyv({ store: store1 });
+			const keyv2 = new Keyv({ store: store2 });
+
+			// Set with different TTLs
+			await keyv1.set("temp", "expires-fast", 100); // 100ms
+			await keyv2.set("temp", "expires-slow", 5000); // 5000ms
+
+			// Both should exist initially
+			expect(await keyv1.get<string>("temp")).toBe("expires-fast");
+			expect(await keyv2.get<string>("temp")).toBe("expires-slow");
+
+			// Wait for first to expire
+			await new Promise((resolve) => setTimeout(resolve, 150));
+
+			// First should be gone, second should remain
+			expect(await keyv1.get("temp")).toBeUndefined();
+			expect(await keyv2.get<string>("temp")).toBe("expires-slow");
+		});
+
+		it("should allow updating values across namespaces independently", async () => {
+			const store1 = new KeyvMongodbStore(sharedCollection, { namespace: "ns1" });
+			const store2 = new KeyvMongodbStore(sharedCollection, { namespace: "ns2" });
+
+			const keyv1 = new Keyv({ store: store1 });
+			const keyv2 = new Keyv({ store: store2 });
+
+			await keyv1.set("counter", 0);
+			await keyv2.set("counter", 0);
+
+			// Update independently
+			await keyv1.set("counter", 1);
+			await keyv2.set("counter", 10);
+			await keyv1.set("counter", 2);
+			await keyv2.set("counter", 20);
+
+			expect(await keyv1.get<number>("counter")).toBe(2);
+			expect(await keyv2.get<number>("counter")).toBe(20);
+		});
+
+		it("should handle complex objects in different namespaces", async () => {
+			const store1 = new KeyvMongodbStore(sharedCollection, { namespace: "tenant1" });
+			const store2 = new KeyvMongodbStore(sharedCollection, { namespace: "tenant2" });
+
+			const keyv1 = new Keyv({ store: store1 });
+			const keyv2 = new Keyv({ store: store2 });
+
+			const user1 = {
+				id: "user-1",
+				name: "Alice",
+				roles: ["admin", "user"],
+				settings: { theme: "dark", notifications: true },
+			};
+
+			const user2 = {
+				id: "user-2",
+				name: "Bob",
+				roles: ["user"],
+				settings: { theme: "light", notifications: false },
+			};
+
+			await keyv1.set("user-profile", user1);
+			await keyv2.set("user-profile", user2);
+
+			expect(await keyv1.get("user-profile")).toEqual(user1);
+			expect(await keyv2.get("user-profile")).toEqual(user2);
+		});
+
+		it("should correctly prefix keys with namespace in storage", async () => {
+			const store1 = new KeyvMongodbStore(sharedCollection, { namespace: "ns1" });
+			const store2 = new KeyvMongodbStore(sharedCollection, { namespace: "ns2" });
+
+			const keyv1 = new Keyv({ store: store1 });
+			const keyv2 = new Keyv({ store: store2 });
+
+			await keyv1.set("test", "value1");
+			await keyv2.set("test", "value2");
+
+			// Check actual keys in collection
+			const doc1 = await sharedCollection.findOne({ key: "ns1:test" });
+			const doc2 = await sharedCollection.findOne({ key: "ns2:test" });
+
+			expect(doc1?.value).toBe("value1");
+			expect(doc2?.value).toBe("value2");
+		});
+
+		it("should handle namespace with no data gracefully", async () => {
+			const store1 = new KeyvMongodbStore(sharedCollection, { namespace: "ns1" });
+			const store2 = new KeyvMongodbStore(sharedCollection, { namespace: "empty" });
+
+			const keyv1 = new Keyv({ store: store1 });
+			const keyv2 = new Keyv({ store: store2 });
+
+			await keyv1.set("data", "exists");
+
+			// Empty namespace operations should work
+			expect(await keyv2.get("data")).toBeUndefined();
+			expect(await keyv2.delete("nonexistent")).toBe(false);
+			await keyv2.clear(); // Should not throw
+			expect(await store2.getMany(["a", "b"])).toEqual([undefined, undefined]);
+		});
+
+		it("should support mixing namespaced and non-namespaced stores on same collection", async () => {
+			const storeWithNs = new KeyvMongodbStore(sharedCollection, { namespace: "ns1" });
+			const storeNoNs = new KeyvMongodbStore(sharedCollection);
+
+			const keyvWithNs = new Keyv({ store: storeWithNs });
+			const keyvNoNs = new Keyv({ store: storeNoNs });
+
+			await keyvWithNs.set("key", "namespaced");
+			await keyvNoNs.set("key", "not-namespaced");
+
+			// Both should coexist
+			expect(await keyvWithNs.get<string>("key")).toBe("namespaced");
+			expect(await keyvNoNs.get<string>("key")).toBe("not-namespaced");
+
+			// Check actual storage
+			const nsDoc = await sharedCollection.findOne({ key: "ns1:key" });
+			const noNsDoc = await sharedCollection.findOne({ key: "key" });
+
+			expect(nsDoc?.value).toBe("namespaced");
+			expect(noNsDoc?.value).toBe("not-namespaced");
+		});
+
+		it("should handle special characters in namespace names", async () => {
+			const store1 = new KeyvMongodbStore(sharedCollection, {
+				namespace: "tenant-123_v2",
+			});
+			const store2 = new KeyvMongodbStore(sharedCollection, {
+				namespace: "env:production",
+			});
+
+			const keyv1 = new Keyv({ store: store1 });
+			const keyv2 = new Keyv({ store: store2 });
+
+			await keyv1.set("data", "value1");
+			await keyv2.set("data", "value2");
+
+			expect(await keyv1.get<string>("data")).toBe("value1");
+			expect(await keyv2.get<string>("data")).toBe("value2");
+		});
+
+		it("should efficiently store many keys across multiple namespaces", async () => {
+			const numNamespaces = 5;
+			const keysPerNamespace = 10;
+
+			const stores = Array.from(
+				{ length: numNamespaces },
+				(_, i) => new KeyvMongodbStore(sharedCollection, { namespace: `ns-${i}` }),
+			);
+			const keyvs = stores.map((store) => new Keyv({ store }));
+
+			// Populate data
+			for (let i = 0; i < numNamespaces; i++) {
+				for (let j = 0; j < keysPerNamespace; j++) {
+					await keyvs[i].set(`key-${j}`, `ns${i}-value${j}`);
+				}
+			}
+
+			// Verify data integrity
+			for (let i = 0; i < numNamespaces; i++) {
+				for (let j = 0; j < keysPerNamespace; j++) {
+					expect(await keyvs[i].get<string>(`key-${j}`)).toBe(`ns${i}-value${j}`);
+				}
+			}
+
+			// Verify total count
+			const totalCount = await sharedCollection.countDocuments();
+			expect(totalCount).toBe(numNamespaces * keysPerNamespace);
+		});
+	});
 });

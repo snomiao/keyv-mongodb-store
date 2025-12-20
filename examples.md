@@ -184,3 +184,52 @@ if (process.env.NODE_ENV === "production") {
   const keyv = new Keyv({ store: prodStore });
 }
 ```
+
+## 11. Multiple Namespaces on Same Collection
+
+This is particularly useful for multi-tenant applications where you want to share infrastructure while maintaining data isolation:
+
+```typescript
+import { MongoClient } from "mongodb";
+import { KeyvMongodbStore } from "keyv-mongodb-store";
+import Keyv from "keyv";
+
+const client = new MongoClient("mongodb://localhost:27017");
+await client.connect();
+const db = client.db("myapp");
+
+// Single collection shared across multiple tenants
+const collection = db.collection("shared-keyv-store");
+
+// Create separate stores for each tenant using the same collection
+const tenant1Store = new KeyvMongodbStore(collection, { namespace: "tenant-001" });
+const tenant2Store = new KeyvMongodbStore(collection, { namespace: "tenant-002" });
+const tenant3Store = new KeyvMongodbStore(collection, { namespace: "tenant-003" });
+
+const tenant1 = new Keyv({ store: tenant1Store });
+const tenant2 = new Keyv({ store: tenant2Store });
+const tenant3 = new Keyv({ store: tenant3Store });
+
+// Each tenant can use the same keys without conflicts
+await tenant1.set("config", { theme: "dark", companyName: "Acme Corp" });
+await tenant2.set("config", { theme: "light", companyName: "TechStart" });
+await tenant3.set("config", { theme: "blue", companyName: "Global Ltd" });
+
+console.log(await tenant1.get("config")); // { theme: "dark", companyName: "Acme Corp" }
+console.log(await tenant2.get("config")); // { theme: "light", companyName: "TechStart" }
+console.log(await tenant3.get("config")); // { theme: "blue", companyName: "Global Ltd" }
+
+// Clear operation only affects the specific namespace
+await tenant2.clear(); // Only clears tenant-002 data
+console.log(await tenant1.get("config")); // Still exists
+console.log(await tenant2.get("config")); // undefined
+console.log(await tenant3.get("config")); // Still exists
+```
+
+### Benefits of Using Namespaces on Same Collection:
+
+1. **Resource Efficiency**: Single collection means fewer indexes and less memory overhead
+2. **Data Isolation**: Each namespace is completely isolated despite sharing storage
+3. **Simplified Management**: One collection to backup, monitor, and maintain
+4. **Cost Effective**: Particularly useful in cloud environments with per-collection pricing
+5. **Flexible TTL**: Each namespace can have different expiration policies on the same keys

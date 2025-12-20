@@ -54,6 +54,8 @@
 		"build": "tsc",
 		"fmt": "biome check --unsafe --write",
 		"test": "bun test",
+		"demo": "bun run demo-namespaces.ts",
+		"demo:namespaces": "bun run demo-namespaces.ts",
 		"prepack": "bun fmt && bun run build",
 		"release": "standard-version && git push --follow-tags && npm publish"
 	},
