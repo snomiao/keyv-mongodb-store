@@ -4,6 +4,20 @@ This demo showcases how to use different namespaces with a single MongoDB collec
 
 ## Prerequisites
 
+### Option 1: Using Docker Compose (Recommended)
+
+The easiest way to get started:
+
+```bash
+# Start MongoDB in the background
+docker-compose up -d
+
+# Or use the npm script
+npm run docker:up
+```
+
+### Option 2: Manual MongoDB Installation
+
 1. MongoDB must be running on `localhost:27017`, or set the `MONGO_URL` environment variable:
    ```bash
    export MONGO_URL="mongodb://your-mongodb-url:27017"
@@ -15,6 +29,8 @@ This demo showcases how to use different namespaces with a single MongoDB collec
    # or
    npm install
    ```
+
+See [TESTING.md](./TESTING.md) for detailed setup instructions.
 
 ## Running the Demo
 

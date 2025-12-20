@@ -56,6 +56,11 @@
 		"test": "bun test",
 		"demo": "bun run demo-namespaces.ts",
 		"demo:namespaces": "bun run demo-namespaces.ts",
+		"docker:up": "docker-compose up -d",
+		"docker:down": "docker-compose down",
+		"docker:clean": "docker-compose down -v",
+		"docker:logs": "docker-compose logs -f mongodb",
+		"test:docker": "docker-compose up -d && bun test; docker-compose down",
 		"prepack": "bun fmt && bun run build",
 		"release": "standard-version && git push --follow-tags && npm publish"
 	},
