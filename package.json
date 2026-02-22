@@ -1,72 +1,72 @@
 {
-	"name": "keyv-mongodb-store",
-	"version": "0.0.3",
-	"description": "A Keyv store implementation using MongoDB as the backend storage",
-	"type": "module",
-	"main": "./dist/index.mjs",
-	"module": "./dist/index.mjs",
-	"types": "./dist/index.d.ts",
-	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.mjs",
-			"default": "./dist/index.mjs"
-		}
-	},
-	"files": [
-		"dist",
-		"README.md",
-		"LICENSE"
-	],
-	"keywords": [
-		"keyv",
-		"mongodb",
-		"storage",
-		"store",
-		"adapter",
-		"key-value",
-		"database",
-		"nosql"
-	],
-	"author": "snomiao",
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/snomiao/keyv-mongodb-store.git"
-	},
-	"bugs": {
-		"url": "https://github.com/snomiao/keyv-mongodb-store/issues"
-	},
-	"homepage": "https://github.com/snomiao/keyv-mongodb-store#readme",
-	"devDependencies": {
-		"@types/bun": "latest",
-		"keyv": "^5.6.0",
-		"mongodb": "^6.21.0",
-		"oxfmt": "^0.34.0",
-		"oxlint": "^1.49.0",
-		"standard-version": "^9.5.0",
-		"tsdown": "^0.20.3",
-		"typescript": "^5.9.3"
-	},
-	"peerDependencies": {
-		"keyv": "^5.0.0",
-		"mongodb": "^6.0.0"
-	},
-	"scripts": {
-		"build": "tsdown",
-		"fix": "oxlint --fix && oxfmt",
-		"test": "bun test",
-		"demo": "bun run demo-namespaces.ts",
-		"demo:namespaces": "bun run demo-namespaces.ts",
-		"docker:up": "docker-compose up -d",
-		"docker:down": "docker-compose down",
-		"docker:clean": "docker-compose down -v",
-		"docker:logs": "docker-compose logs -f mongodb",
-		"test:docker": "docker-compose up -d && bun test; docker-compose down",
-		"prepack": "bun fix && bun run build",
-		"release": "standard-version && git push --follow-tags && npm publish"
-	},
-	"engines": {
-		"node": ">=18.0.0"
-	}
+  "name": "keyv-mongodb-store",
+  "version": "0.0.3",
+  "description": "A Keyv store implementation using MongoDB as the backend storage",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "keyv",
+    "mongodb",
+    "storage",
+    "store",
+    "adapter",
+    "key-value",
+    "database",
+    "nosql"
+  ],
+  "author": "snomiao",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/snomiao/keyv-mongodb-store.git"
+  },
+  "bugs": {
+    "url": "https://github.com/snomiao/keyv-mongodb-store/issues"
+  },
+  "homepage": "https://github.com/snomiao/keyv-mongodb-store#readme",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "keyv": "^5.6.0",
+    "mongodb": "^6.21.0",
+    "oxfmt": "^0.34.0",
+    "oxlint": "^1.49.0",
+    "standard-version": "^9.5.0",
+    "tsdown": "^0.20.3",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "keyv": "^5.0.0",
+    "mongodb": "^6.0.0"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "fix": "oxlint --fix && oxfmt",
+    "test": "bun test",
+    "demo": "bun run demo-namespaces.ts",
+    "demo:namespaces": "bun run demo-namespaces.ts",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:clean": "docker-compose down -v",
+    "docker:logs": "docker-compose logs -f mongodb",
+    "test:docker": "docker-compose up -d && bun test; docker-compose down",
+    "prepack": "bun fix && bun run build",
+    "release": "standard-version && git push --follow-tags && npm publish"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
