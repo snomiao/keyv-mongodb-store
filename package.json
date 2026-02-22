@@ -3,14 +3,14 @@
 	"version": "0.0.3",
 	"description": "A Keyv store implementation using MongoDB as the backend storage",
 	"type": "module",
-	"main": "./dist/index.js",
-	"module": "./dist/index.js",
+	"main": "./dist/index.mjs",
+	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js",
-			"default": "./dist/index.js"
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.mjs"
 		}
 	},
 	"files": [
@@ -39,11 +39,13 @@
 	},
 	"homepage": "https://github.com/snomiao/keyv-mongodb-store#readme",
 	"devDependencies": {
-		"@biomejs/biome": "^2.3.8",
 		"@types/bun": "latest",
-		"keyv": "^5.0.0",
-		"mongodb": "^6.0.0",
+		"keyv": "^5.6.0",
+		"mongodb": "^6.21.0",
+		"oxfmt": "^0.34.0",
+		"oxlint": "^1.49.0",
 		"standard-version": "^9.5.0",
+		"tsdown": "^0.20.3",
 		"typescript": "^5.9.3"
 	},
 	"peerDependencies": {
@@ -51,8 +53,8 @@
 		"mongodb": "^6.0.0"
 	},
 	"scripts": {
-		"build": "tsc",
-		"fmt": "biome check --unsafe --write",
+		"build": "tsdown",
+		"fix": "oxlint --fix && oxfmt",
 		"test": "bun test",
 		"demo": "bun run demo-namespaces.ts",
 		"demo:namespaces": "bun run demo-namespaces.ts",
@@ -61,7 +63,7 @@
 		"docker:clean": "docker-compose down -v",
 		"docker:logs": "docker-compose logs -f mongodb",
 		"test:docker": "docker-compose up -d && bun test; docker-compose down",
-		"prepack": "bun fmt && bun run build",
+		"prepack": "bun fix && bun run build",
 		"release": "standard-version && git push --follow-tags && npm publish"
 	},
 	"engines": {
